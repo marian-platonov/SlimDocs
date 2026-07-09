@@ -185,23 +185,26 @@ The **Logs** tab shows a full session history of all extraction runs, filterable
 
 ## Optional dependencies reference
 
-| Package | Purpose |
-|---------|---------|
-| `pdfplumber` | PDF text and table extraction |
-| `PyMuPDF` | PDF page rendering and embedded image extraction |
-| `python-docx` | DOCX and ODT parsing |
-| `openpyxl` | XLSX parsing |
-| `odfpy` | ODS spreadsheet parsing |
-| `python-pptx` | PPTX slide extraction |
-| `pillow` | Image handling |
-| `pytesseract` | OCR (requires Tesseract binary) |
-| `trafilatura` | HTML and URL content extraction |
-| `rarfile` | RAR archive support |
-| `py7zr` | 7-Zip archive support |
-| `evtx` | Windows Event Log fallback parser |
-| `requests` | URL fetching |
-| `pandas` | DataFrames and CSV export |
-| `plotly` | Interactive charts in the Statistics tab |
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `pdfplumber` | `>=0.10.0` | PDF text and table extraction |
+| `PyMuPDF` | `>=1.24.0` | PDF page rendering and embedded image extraction |
+| `python-docx` | `>=1.1.0` | DOCX and ODT parsing |
+| `openpyxl` | `>=3.1.2` | XLSX parsing |
+| `odfpy` | `>=1.4.1` | ODS spreadsheet parsing |
+| `python-pptx` | `>=0.6.21` | PPTX slide extraction |
+| `pillow` | `>=10.0.0` | Image handling |
+| `pytesseract` | `>=0.3.10` | OCR (requires Tesseract binary) |
+| `trafilatura` | `>=1.6.0` | HTML and URL content extraction |
+| `rarfile` | `>=4.1` | RAR archive support |
+| `py7zr` | `>=0.21.0` | 7-Zip archive support |
+| `evtx` | `>=0.8.0` | Windows Event Log fallback parser |
+| `defusedxml` | `>=0.7.1` | Safe XML parsing for ODT/EVTX (XXE / entity-expansion protection) |
+| `requests` | `>=2.31.0` | URL fetching |
+| `pandas` | `>=2.1.0` | DataFrames and CSV export |
+| `plotly` | `>=5.18.0` | Interactive charts in the Statistics tab |
+
+> Versions above match [`requirements.txt`](requirements.txt) — that file is the source of truth if the two ever drift.
 
 ---
 
@@ -214,3 +217,14 @@ The **Logs** tab shows a full session history of all extraction runs, filterable
 **Cause:** `pytesseract` (the Python wrapper) and **Tesseract-OCR** (the actual OCR engine binary) are two separate installs. Having only `pytesseract` via pip is not enough.
 
 **Fix:** Follow the Tesseract install steps in [Getting started → Step 2](#2-install-tesseract-for-image-and-pdf-image-ocr) above. After adding Tesseract to PATH, **close and reopen the tool completely** — a page refresh alone does not reload environment variables.
+
+### App doesn't open automatically in the browser
+
+**Symptom:** Running `streamlit run app.py` (or double-clicking the `slimDocs.exe.lnk` shortcut) starts the server in the terminal, but no browser window opens.
+
+**Cause:** Streamlit opens whichever browser is set as the OS **default browser**. If no default browser is configured (or it's set to an app that can't handle the URL), there's nothing for it to launch.
+
+**Fix:**
+1. Check **Settings → Apps → Default apps → Web browser** (Windows) and confirm one is set
+2. Recommended: set **Microsoft Edge** or **Google Chrome** as the default browser
+3. If it still doesn't open, manually browse to `http://localhost:8087` (or whatever port is set in [`.streamlit/config.toml`](.streamlit/config.toml))

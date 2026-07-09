@@ -402,11 +402,15 @@ def _extract_docx(path: Path) -> str:
 
 def _extract_odt(path: Path) -> str:
     """OpenDocument Text — extract content.xml from the ZIP container."""
+    try:
+        from defusedxml import ElementTree as DET
+    except ImportError:
+        raise RuntimeError("defusedxml not installed — run: pip install defusedxml")
     with zipfile.ZipFile(path, "r") as zf:
         if "content.xml" not in zf.namelist():
             raise ValueError("content.xml not found inside ODT file")
         raw = zf.read("content.xml")
-    root = ET.fromstring(raw)
+    root = DET.fromstring(raw)
     parts = []
     for el in root.iter():
         tag = el.tag.split("}")[-1] if "}" in el.tag else el.tag
@@ -657,12 +661,16 @@ def _evtx_parse_xml(xml_str: str, msg: str = "") -> str | None:
     `msg` is the human-readable EvtFormatMessage text (wevtapi only).
     Returns None when the record should be skipped.
     """
+    try:
+        from defusedxml import ElementTree as DET
+    except ImportError:
+        raise RuntimeError("defusedxml not installed — run: pip install defusedxml")
     _NS = "http://schemas.microsoft.com/win/2004/08/events/event"
     _LEVELS = {
         "0": "Info", "1": "Critical", "2": "Error",
         "3": "Warning", "4": "Information", "5": "Verbose",
     }
-    root   = ET.fromstring(xml_str)
+    root   = DET.fromstring(xml_str)
     ns     = {"e": _NS}
     system = root.find("e:System", ns)
     if system is None:
