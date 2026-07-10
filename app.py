@@ -875,7 +875,23 @@ def _fetch_confluence(url: str) -> str:
     email = os.environ.get("ATLASSIAN_EMAIL", "")
     token = os.environ.get("ATLASSIAN_API_TOKEN", "")
     auth = (email, token) if email and token else None
-    resp = requests.get(api_url, timeout=15, auth=auth)
+    resp = requests.get(
+        api_url, timeout=15, auth=auth,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; SlimDocs/1.0)"},
+    )
+    if resp.status_code in (401, 403):
+        if not auth:
+            hint = "ATLASSIAN_EMAIL/ATLASSIAN_API_TOKEN are not set for this process"
+        else:
+            hint = (
+                "verify ATLASSIAN_EMAIL/ATLASSIAN_API_TOKEN are correct, the API token "
+                "has Confluence read access/scope, and this account can view the page"
+            )
+        raise RuntimeError(
+            f"Confluence returned {resp.status_code} fetching {url} - {hint}. "
+            "Note: env vars set after this app (or its terminal) was already running "
+            "won't take effect until you close and restart it."
+        )
     resp.raise_for_status()
     return resp.json()["body"]["view"]["value"]
 
