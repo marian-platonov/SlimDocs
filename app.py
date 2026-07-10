@@ -13,7 +13,6 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 # ── wevtapi.dll - Windows-native EVTX parser (superior to evtx library) ──────
 # Loaded once at startup; None on non-Windows or if the DLL is unavailable.
@@ -199,7 +198,6 @@ def _init_session():
         "logs": [],
         "session_history": {},
         "selected_session_ts": None,
-        "nav_to_stats_pending": False,
         "session_totals": {
             "runs": 0, "files_ok": 0, "errors": 0,
             "tokens_before": 0, "tokens_after": 0, "tokens_saved": 0,
@@ -2131,43 +2129,40 @@ def _build_report(results: dict) -> str:
     return "\n".join(lines)
 
 
-def _switch_to_tab(label_text: str) -> None:
-    """Click the Streamlit tab whose visible label contains ``label_text``.
+def _on_logs_row_select() -> None:
+    """Widget callback for the Logs table: jump to that run's Statistics & Reports.
 
-    Streamlit exposes no public API to change the active ``st.tabs`` panel from
-    Python, so this reaches into the parent document from the components
-    iframe and clicks the matching tab button. Depends on Streamlit's internal
-    tab markup (``button[data-baseweb="tab"]``) and may need updating if a
-    future Streamlit release changes it.
+    Runs before the script body re-executes (Streamlit widget-callback
+    semantics), so setting ``session_state["main_tabs"]`` here - before
+    ``st.tabs(..., key="main_tabs")`` is re-instantiated - is what actually
+    switches the active tab. ``st.tabs`` has no other public API for
+    controlling the active tab from Python.
     """
-    components.html(
-        f"""
-        <script>
-        (function() {{
-            const target = {json.dumps(label_text)};
-            function clickTab() {{
-                const doc = window.parent.document;
-                const tabs = doc.querySelectorAll('button[data-baseweb="tab"]');
-                for (const t of tabs) {{
-                    if (t.innerText.includes(target)) {{
-                        t.click();
-                        return true;
-                    }}
-                }}
-                return false;
-            }}
-            if (!clickTab()) {{
-                let attempts = 0;
-                const iv = setInterval(() => {{
-                    attempts++;
-                    if (clickTab() || attempts > 20) clearInterval(iv);
-                }}, 100);
-            }}
-        }})();
-        </script>
-        """,
-        height=0,
-    )
+    sel = st.session_state.get("logs_table")
+    if not sel or not sel["selection"]["rows"]:
+        return
+
+    logs = st.session_state.logs
+    type_filter = st.session_state.get("logs_type_filter", "All")
+    search_term = st.session_state.get("logs_search_term", "")
+    filtered = logs
+    if type_filter != "All":
+        filtered = [e for e in filtered if e["Type"] == type_filter]
+    if search_term.strip():
+        kw = search_term.strip().lower()
+        filtered = [
+            e for e in filtered
+            if kw in e["File"].lower() or kw in e["Message"].lower()
+        ]
+
+    idx = sel["selection"]["rows"][0]
+    if idx >= len(filtered):
+        return
+    ts = filtered[idx]["Time"]
+    if ts in st.session_state.session_history:
+        st.session_state.selected_session_ts = ts
+        st.session_state["main_tabs"] = "📊 Statistics & Reports"
+        st.toast(f"📊 Opened session {ts} in Statistics & Reports")
 
 
 # ── DuckDB Explorer helpers ───────────────────────────────────────────────────
@@ -2754,13 +2749,13 @@ def main():
             "📊 Statistics & Reports",
             "📋 Logs",
             "🦆 DuckDB Explorer",
-        ])
+        ], key="main_tabs", on_change="rerun")
     else:
         tab1, tab2, tab3 = st.tabs([
             "📁 File Processing",
             "📊 Statistics & Reports",
             "📋 Logs",
-        ])
+        ], key="main_tabs", on_change="rerun")
         tab4 = None
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -3166,9 +3161,13 @@ def main():
             with col_type:
                 type_filter = st.selectbox(
                     "Filter by type", ["All", "✅ Success", "❌ Error"], index=0,
+                    key="logs_type_filter",
                 )
             with col_search:
-                search_term = st.text_input("Search file or message", placeholder="keyword…")
+                search_term = st.text_input(
+                    "Search file or message", placeholder="keyword…",
+                    key="logs_search_term",
+                )
 
             filtered = logs
             if type_filter != "All":
@@ -3190,7 +3189,8 @@ def main():
                     log_df,
                     use_container_width=True,
                     hide_index=True,
-                    on_select="rerun",
+                    key="logs_table",
+                    on_select=_on_logs_row_select,
                     selection_mode="single-row",
                     column_config={
                         "Time":    st.column_config.TextColumn("Time",    width="small"),
@@ -3199,20 +3199,12 @@ def main():
                         "Message": st.column_config.TextColumn("Message", width="large"),
                     },
                 )
-                if log_event.selection.rows:
-                    _row = filtered[log_event.selection.rows[0]]
-                    _ts = _row["Time"]
-                    if _ts in st.session_state.session_history:
-                        if st.session_state.selected_session_ts != _ts:
-                            st.session_state.selected_session_ts = _ts
-                            st.session_state.nav_to_stats_pending = True
-                            st.rerun()
-                        elif st.session_state.get("nav_to_stats_pending"):
-                            st.session_state.nav_to_stats_pending = False
-                            st.toast(f"📊 Opened session {_ts} in Statistics & Reports")
-                            _switch_to_tab("Statistics & Reports")
-                    else:
-                        st.warning("That session's full data is no longer available.")
+                if (
+                    log_event.selection.rows
+                    and filtered[log_event.selection.rows[0]]["Time"]
+                    not in st.session_state.session_history
+                ):
+                    st.warning("That session's full data is no longer available.")
 
                 csv = log_df.to_csv(index=False).encode("utf-8")
                 st.download_button("📥 Export Logs", csv, "extraction_logs.csv", "text/csv")
