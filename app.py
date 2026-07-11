@@ -2791,19 +2791,26 @@ def main():
         _sb_progress_slot = st.empty()
 
     # ── Main tabs ─────────────────────────────────────────────────────────────
+    # Extraction runs synchronously inside this one script execution (start to
+    # finish, for however long it takes) - if the tabs track state via reruns
+    # during that run, clicking another tab would interrupt/abort the
+    # extraction before it saves results. Only enable tab-switch reruns (needed
+    # for the Logs -> Statistics & Reports click-through) on runs that aren't
+    # actively extracting.
+    _tabs_on_change = "ignore" if extract_clicked else "rerun"
     if fmt == "duckdb":
         tab1, tab2, tab3, tab4 = st.tabs([
             "📁 File Processing",
             "📊 Statistics & Reports",
             "📋 Logs",
             "🦆 DuckDB Explorer",
-        ], key="main_tabs", on_change="rerun")
+        ], key="main_tabs", on_change=_tabs_on_change)
     else:
         tab1, tab2, tab3 = st.tabs([
             "📁 File Processing",
             "📊 Statistics & Reports",
             "📋 Logs",
-        ], key="main_tabs", on_change="rerun")
+        ], key="main_tabs", on_change=_tabs_on_change)
         tab4 = None
 
     # ═══════════════════════════════════════════════════════════════════════════
