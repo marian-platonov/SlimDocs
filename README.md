@@ -14,8 +14,7 @@ SlimDocs is a Streamlit web app that strips away binary file formats and gives y
 - Outputs Markdown, plain text, or chunked JSON ready for Claude or any other LLM
 - Shows token counts before and after, reduction percentage, and per-file statistics
 
-
-<img width="3440" height="999" alt="image" src="https://github.com/user-attachments/assets/0fc1b4d6-2864-4ae1-8120-8a1e747bb45f" />
+<img width="3440" height="999" alt="image" src="https://github.com/user-attachments/assets/e8691d5f-d2bc-44cf-8c19-17947aaa8fa2" />
 
 ---
 
